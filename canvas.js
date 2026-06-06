@@ -241,9 +241,12 @@ export class CanvasController {
         }
         
         if (this.currentPathPoints.length > 2) {
+          // Smooth raw path coordinates for a professional, premium aesthetic
+          const smoothedPoints = this.smoothPoints(this.currentPathPoints, 3);
+          
           let minX = Infinity, minY = Infinity;
           let maxX = -Infinity, maxY = -Infinity;
-          this.currentPathPoints.forEach(pt => {
+          smoothedPoints.forEach(pt => {
             if (pt.x < minX) minX = pt.x;
             if (pt.y < minY) minY = pt.y;
             if (pt.x > maxX) maxX = pt.x;
@@ -258,7 +261,7 @@ export class CanvasController {
           const centerX = minX + w / 2;
           const centerY = minY + h / 2;
           
-          const localPoints = this.currentPathPoints.map(pt => ({
+          const localPoints = smoothedPoints.map(pt => ({
             x: pt.x - centerX,
             y: pt.y - centerY
           }));
@@ -606,5 +609,23 @@ export class CanvasController {
       const state = getResolvedElementState(el, this.elements, this.currentTime, activeCache);
       this.renderElementDOM(el, state, false);
     });
+  }
+
+  smoothPoints(points, passes = 2) {
+    if (points.length < 3) return points;
+    let current = [...points];
+    for (let p = 0; p < passes; p++) {
+      const next = [];
+      next.push(current[0]);
+      for (let i = 1; i < current.length - 1; i++) {
+        next.push({
+          x: (current[i - 1].x + current[i].x + current[i + 1].x) / 3,
+          y: (current[i - 1].y + current[i].y + current[i + 1].y) / 3
+        });
+      }
+      next.push(current[current.length - 1]);
+      current = next;
+    }
+    return current;
   }
 }
