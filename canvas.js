@@ -6,12 +6,13 @@ import { getResolvedElementState } from './engine.js';
 import { particles } from './particles.js';
 
 export class CanvasController {
-  constructor(viewportId, containerId, overlayId, onSelectionChanged, onElementModified) {
+  constructor(viewportId, containerId, overlayId, onSelectionChanged, onElementModified, onDrawCompleted) {
     this.viewport = document.getElementById(viewportId);
     this.container = document.getElementById(containerId);
     this.overlay = document.getElementById(overlayId);
     this.onSelectionChanged = onSelectionChanged;
     this.onElementModified = onElementModified;
+    this.onDrawCompleted = onDrawCompleted;
 
     this.selectedElementId = null;
     this.elements = [];
@@ -24,6 +25,13 @@ export class CanvasController {
     
     this.onionSkinEnabled = false;
 
+    // Brush drawing variables
+    this.brushActive = false;
+    this.isDrawingPath = false;
+    this.currentPathPoints = [];
+    this.tempSvgOverlay = null;
+    this.tempPathNode = null;
+
     // Drag and transform variables
     this.isDragging = false;
     this.isTransforming = false;
@@ -35,6 +43,16 @@ export class CanvasController {
     
     // Initialize magical particle overlay
     setTimeout(() => particles.init('canvas-stage-wrapper'), 100);
+  }
+
+  setBrushActive(active) {
+    this.brushActive = active;
+    if (active) {
+      this.viewport.classList.add('brush-active');
+      this.selectElement(null);
+    } else {
+      this.viewport.classList.remove('brush-active');
+    }
   }
 
   setElements(elements) {
@@ -83,6 +101,37 @@ export class CanvasController {
   initEvents() {
     // Stage-wide clicks and drags
     this.container.addEventListener('mousedown', (e) => {
+      if (this.brushActive) {
+        this.isDrawingPath = true;
+        this.currentPathPoints = [];
+        
+        const stageRect = document.getElementById('canvas-stage-wrapper').getBoundingClientRect();
+        const mouseStageX = (e.clientX - stageRect.left) / this.zoom;
+        const mouseStageY = (e.clientY - stageRect.top) / this.zoom;
+        
+        this.currentPathPoints.push({ x: mouseStageX, y: mouseStageY });
+        
+        this.tempSvgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        this.tempSvgOverlay.setAttribute('style', 'position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 1000;');
+        this.container.appendChild(this.tempSvgOverlay);
+        
+        this.tempPathNode = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        this.tempPathNode.setAttribute('fill', 'none');
+        
+        const brushColor = document.getElementById('val-color')?.value || '#00f0ff';
+        const brushWidth = parseInt(document.getElementById('val-stroke-width')?.value) || 4;
+        
+        this.tempPathNode.setAttribute('stroke', brushColor);
+        this.tempPathNode.setAttribute('stroke-width', brushWidth);
+        this.tempPathNode.setAttribute('stroke-linecap', 'round');
+        this.tempPathNode.setAttribute('stroke-linejoin', 'round');
+        this.tempPathNode.setAttribute('filter', `drop-shadow(0 0 5px ${brushColor})`);
+        
+        this.tempSvgOverlay.appendChild(this.tempPathNode);
+        e.preventDefault();
+        return;
+      }
+
       // Clear selection if clicking empty canvas space
       if (e.target === this.container || e.target.classList.contains('grid-backdrop')) {
         this.selectElement(null);
@@ -109,6 +158,8 @@ export class CanvasController {
 
     // Handle button transform starts
     this.overlay.addEventListener('mousedown', (e) => {
+      if (this.brushActive) return;
+
       const handle = e.target.closest('.handle');
       if (!handle || !this.selectedElementId) return;
 
@@ -138,6 +189,28 @@ export class CanvasController {
 
     // Global drag moves
     window.addEventListener('mousemove', (e) => {
+      if (this.isDrawingPath) {
+        const stageRect = document.getElementById('canvas-stage-wrapper').getBoundingClientRect();
+        const mouseStageX = (e.clientX - stageRect.left) / this.zoom;
+        const mouseStageY = (e.clientY - stageRect.top) / this.zoom;
+        
+        this.currentPathPoints.push({ x: mouseStageX, y: mouseStageY });
+        
+        let d = '';
+        this.currentPathPoints.forEach((pt, idx) => {
+          if (idx === 0) {
+            d += `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
+          } else {
+            d += ` L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
+          }
+        });
+        this.tempPathNode.setAttribute('d', d);
+        
+        const brushColor = this.tempPathNode.getAttribute('stroke') || '#00f0ff';
+        particles.emitSparkle(mouseStageX, mouseStageY, 1, brushColor);
+        return;
+      }
+
       if (this.isDragging && this.selectedElementId) {
         this.handleDragMove(e);
         
@@ -158,6 +231,64 @@ export class CanvasController {
 
     // Drag stops
     window.addEventListener('mouseup', () => {
+      if (this.isDrawingPath) {
+        this.isDrawingPath = false;
+        
+        if (this.tempSvgOverlay) {
+          this.tempSvgOverlay.remove();
+          this.tempSvgOverlay = null;
+          this.tempPathNode = null;
+        }
+        
+        if (this.currentPathPoints.length > 2) {
+          let minX = Infinity, minY = Infinity;
+          let maxX = -Infinity, maxY = -Infinity;
+          this.currentPathPoints.forEach(pt => {
+            if (pt.x < minX) minX = pt.x;
+            if (pt.y < minY) minY = pt.y;
+            if (pt.x > maxX) maxX = pt.x;
+            if (pt.y > maxY) maxY = pt.y;
+          });
+          
+          let w = maxX - minX;
+          let h = maxY - minY;
+          if (w < 4) w = 4;
+          if (h < 4) h = 4;
+          
+          const centerX = minX + w / 2;
+          const centerY = minY + h / 2;
+          
+          const localPoints = this.currentPathPoints.map(pt => ({
+            x: pt.x - centerX,
+            y: pt.y - centerY
+          }));
+          
+          let localD = '';
+          localPoints.forEach((pt, idx) => {
+            if (idx === 0) {
+              localD += `M ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
+            } else {
+              localD += ` L ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`;
+            }
+          });
+          
+          if (this.onDrawCompleted) {
+            const brushColor = document.getElementById('val-color')?.value || '#00f0ff';
+            const brushWidth = parseInt(document.getElementById('val-stroke-width')?.value) || 4;
+            this.onDrawCompleted({
+              d: localD,
+              x: centerX,
+              y: centerY,
+              width: w,
+              height: h,
+              color: brushColor,
+              strokeWidth: brushWidth
+            });
+          }
+        }
+        return;
+      }
+
       if (this.isDragging || this.isTransforming) {
         this.isDragging = false;
         this.isTransforming = false;
@@ -333,7 +464,7 @@ export class CanvasController {
   }
 
   updateTransformOverlay() {
-    if (!this.selectedElementId) {
+    if (!this.selectedElementId || this.brushActive) {
       this.overlay.style.display = 'none';
       return;
     }
@@ -436,6 +567,14 @@ export class CanvasController {
       if (state.blur > 0 && !isGhost) {
         div.style.textShadow = `0 0 ${state.blur}px ${state.color}`;
       }
+    } else if (state.type === 'draw') {
+      div.classList.add('svg-element');
+      const halfW = state.width / 2;
+      const halfH = state.height / 2;
+      div.innerHTML = `
+        <svg viewBox="${-halfW} ${-halfH} ${state.width} ${state.height}" preserveAspectRatio="none" style="width: 100%; height: 100%; filter: ${shadowFilter};">
+          <path d="${el.pathD}" fill="none" stroke="${state.color}" stroke-width="${state.strokeWidth || 4}" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>`;
     }
 
     this.container.appendChild(div);

@@ -20,6 +20,7 @@ class AnimationStudioApp {
     this.loopEnabled = true;
     this.zoom = 1;
     this.gridSnap = true;
+    this.brushMode = false;
     
     // Playback loop timing
     this.lastFrameTime = 0;
@@ -37,7 +38,8 @@ class AnimationStudioApp {
       'animation-container',
       'transform-overlay',
       (selectedId) => this.handleSelectionChanged(selectedId),
-      (element) => this.handleElementModified(element)
+      (element) => this.handleElementModified(element),
+      (drawingData) => this.addDrawnElement(drawingData)
     );
 
     // 2. Timeline Controller
@@ -163,7 +165,7 @@ class AnimationStudioApp {
 
   bindDOMEvents() {
     // 1. Layer/Asset Spawners
-    const spawnerBtns = document.querySelectorAll('.tool-btn');
+    const spawnerBtns = document.querySelectorAll('.tool-btn:not(#btn-tool-brush)');
     spawnerBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const type = btn.dataset.type;
@@ -175,6 +177,14 @@ class AnimationStudioApp {
         }
       });
     });
+
+    const brushBtn = document.getElementById('btn-tool-brush');
+    if (brushBtn) {
+      brushBtn.addEventListener('click', () => {
+        synth.buttonTick();
+        this.toggleBrushMode();
+      });
+    }
 
     // 2. Load Demo Button
     const btnDemo = document.getElementById('btn-load-demo');
@@ -667,6 +677,9 @@ class AnimationStudioApp {
   /* ── DOM ELEMENTS CREATION ── */
 
   addElement(type) {
+    if (this.brushMode) {
+      this.toggleBrushMode();
+    }
     const id = Date.now();
     const count = this.elements.filter(e => e.type === type).length + 1;
     
@@ -713,6 +726,9 @@ class AnimationStudioApp {
   }
 
   addStickerElement(stickerType) {
+    if (this.brushMode) {
+      this.toggleBrushMode();
+    }
     const id = Date.now();
     let name = '';
     let type = '';
@@ -791,7 +807,64 @@ class AnimationStudioApp {
     this.saveToLocalStorage();
   }
 
+  toggleBrushMode() {
+    this.brushMode = !this.brushMode;
+    const brushBtn = document.getElementById('btn-tool-brush');
+    if (brushBtn) {
+      brushBtn.classList.toggle('active', this.brushMode);
+    }
+    this.canvasCtrl.setBrushActive(this.brushMode);
+  }
+
+  addDrawnElement(drawingData) {
+    const id = Date.now();
+    const count = this.elements.filter(e => e.type === 'draw').length + 1;
+    
+    const newEl = {
+      id: id,
+      name: `Drawing ${count}`,
+      type: 'draw',
+      x: drawingData.x,
+      y: drawingData.y,
+      width: drawingData.width,
+      height: drawingData.height,
+      pathD: drawingData.d,
+      rotation: 0,
+      scale: 1,
+      color: drawingData.color,
+      opacity: 100,
+      radius: 0,
+      stroke: '#ffffff',
+      strokeWidth: drawingData.strokeWidth || 4,
+      blur: 0,
+      pivotX: 50,
+      pivotY: 50,
+      parentId: null,
+      text: '',
+      locked: false,
+      hidden: false,
+      keyframes: {
+        x: [], y: [], width: [], height: [], rotation: [], scale: [], 
+        opacity: [], color: [], radius: [], stroke: [], strokeWidth: [], blur: [], text: [],
+        pivotX: [], pivotY: []
+      }
+    };
+
+    this.elements.push(newEl);
+    this.canvasCtrl.setElements(this.elements);
+    this.timelineCtrl.setElements(this.elements);
+    
+    synth.bubblePop();
+    particles.emitSparkle(newEl.x, newEl.y, 12, newEl.color);
+    
+    this.selectElement(id);
+    this.saveToLocalStorage();
+  }
+
   selectElement(id) {
+    if (id !== null && this.brushMode) {
+      this.toggleBrushMode();
+    }
     this.selectedElementId = id;
     this.canvasCtrl.selectElement(id);
     this.timelineCtrl.setSelectedElement(id);
@@ -845,6 +918,7 @@ class AnimationStudioApp {
       else if (el.type === 'triangle') icon = 'change_history';
       else if (el.type === 'text') icon = 'title';
       else if (el.type === 'wave') icon = 'waves';
+      else if (el.type === 'draw') icon = 'brush';
 
       item.innerHTML = `
         <div class="layer-meta">

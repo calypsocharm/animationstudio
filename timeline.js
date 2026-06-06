@@ -208,6 +208,7 @@ export class TimelineController {
       else if (el.type === 'triangle') icon = 'change_history';
       else if (el.type === 'text') icon = 'title';
       else if (el.type === 'wave') icon = 'waves';
+      else if (el.type === 'draw') icon = 'brush';
 
       cell.innerHTML = `<span class="material-symbols-rounded">${icon}</span> ${el.name}`;
       

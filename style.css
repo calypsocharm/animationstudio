@@ -388,6 +388,16 @@ body {
 .tool-btn:active {
   transform: scale(0.95);
 }
+.tool-btn.active {
+  color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.08);
+  border-color: rgba(0, 240, 255, 0.25);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+}
+.tool-btn.active span.material-symbols-rounded {
+  color: var(--accent-cyan) !important;
+}
+
 
 /* Layers list */
 .layers-section {
@@ -563,6 +573,12 @@ body {
   padding: 30px;
   overflow: auto;
   position: relative;
+}
+.canvas-viewport.brush-active {
+  cursor: crosshair;
+}
+.canvas-viewport.brush-active .canvas-element {
+  pointer-events: none !important;
 }
 
 /* Stage wrapper holds grid and animated layers */

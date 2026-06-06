@@ -116,13 +116,15 @@ export function compileToCSSHTML(projectTitle, elements, duration, loopEnabled) 
       css += `    height: ${state.height}px;\n`;
       css += `    opacity: ${(state.opacity / 100).toFixed(2)};\n`;
 
-      if (state.type !== 'text' && state.type !== 'wave') {
+      if (state.type !== 'text' && state.type !== 'wave' && state.type !== 'draw') {
         css += `    background-color: ${state.color};\n`;
         css += `    border-radius: ${state.radius}px;\n`;
         css += `    border: ${state.strokeWidth}px solid ${state.stroke};\n`;
       } else if (state.type === 'text') {
         css += `    color: ${state.color};\n`;
         css += `    font-size: ${state.height * 0.75}px;\n`;
+      } else if (state.type === 'wave' || state.type === 'draw') {
+        css += `    color: ${state.color};\n`;
       }
 
       // Drop shadows / glows
@@ -133,7 +135,7 @@ export function compileToCSSHTML(projectTitle, elements, duration, loopEnabled) 
           css += `    box-shadow: 0 0 ${state.blur}px ${state.color};\n`;
         }
       } else {
-        if (state.type !== 'text' && state.type !== 'wave') {
+        if (state.type !== 'text' && state.type !== 'wave' && state.type !== 'draw') {
           css += `    box-shadow: none;\n`;
         }
       }
@@ -167,6 +169,14 @@ export function compileToCSSHTML(projectTitle, elements, duration, loopEnabled) 
       html += `  <div class="starby-animated-el ${layerId}">\n`;
       html += `    <svg viewBox="0 0 100 20" preserveAspectRatio="none" style="width:100%; height:100%;">\n`;
       html += `      <path d="M0,10 Q25,0 50,10 T100,10" fill="none" stroke="currentColor" stroke-width="2" style="color: inherit;"></path>\n`;
+      html += `    </svg>\n`;
+      html += `  </div>\n`;
+    } else if (el.type === 'draw') {
+      const halfW = el.width / 2;
+      const halfH = el.height / 2;
+      html += `  <div class="starby-animated-el ${layerId}">\n`;
+      html += `    <svg viewBox="${-halfW} ${-halfH} ${el.width} ${el.height}" preserveAspectRatio="none" style="width:100%; height:100%;">\n`;
+      html += `      <path d="${el.pathD}" fill="none" stroke="currentColor" stroke-width="${el.strokeWidth || 4}" stroke-linecap="round" stroke-linejoin="round" style="color: inherit;"></path>\n`;
       html += `    </svg>\n`;
       html += `  </div>\n`;
     }
