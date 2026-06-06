@@ -97,6 +97,29 @@
             </button>
           </div>
         </div>
+        
+        <!-- Stickers Section -->
+        <div class="library-section" style="border-top: 1px solid var(--border-light); padding-top: 14px;">
+          <h3>Cute Stickers</h3>
+          <div class="tool-grid">
+            <button class="tool-btn sticker-btn" data-type="starfish" title="Add Cute Starfish">
+              <span style="font-size: 22px;">⭐</span>
+              <span>Starfish</span>
+            </button>
+            <button class="tool-btn sticker-btn" data-type="pearl" title="Add Happy Pearl">
+              <span style="font-size: 22px;">🦪</span>
+              <span>Pearl</span>
+            </button>
+            <button class="tool-btn sticker-btn" data-type="shell" title="Add Ocean Shell">
+              <span style="font-size: 22px;">🐚</span>
+              <span>Shell</span>
+            </button>
+            <button class="tool-btn sticker-btn" data-type="cloud" title="Add Smiling Cloud">
+              <span style="font-size: 22px;">☁️</span>
+              <span>Cloud</span>
+            </button>
+          </div>
+        </div>
 
         <!-- Layers Section -->
         <div class="layers-section">
@@ -244,6 +267,13 @@
                   <option value="">None (Independent Layer)</option>
                 </select>
               </div>
+              <div class="input-field full-width" style="margin-top: 10px;">
+                <label for="val-squish">Cartoon Squishiness (Squash & Stretch)</label>
+                <div class="input-with-unit" style="gap: 10px;">
+                  <input type="range" id="val-squish" min="0" max="10" value="0" step="1" style="flex: 1; padding: 0;" />
+                  <span id="squish-val" style="position: static; font-family: var(--font-mono); color: var(--accent-coral); font-weight: 700;">0</span>
+                </div>
+              </div>
             </div>
 
             <!-- Style Parameters -->
@@ -297,6 +327,18 @@
                   </div>
                 </div>
               </div>
+              <div class="input-field full-width" style="margin-top: 12px;">
+                <label>Vibrant Palettes</label>
+                <div class="gradient-grid" style="display: flex; gap: 8px; margin-top: 4px;">
+                  <button class="grad-swatch" data-color="#ff6b8b" style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); cursor: pointer; background: #ff6b8b;" title="Sunset Coral"></button>
+                  <button class="grad-swatch" data-color="#00f0ff" style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); cursor: pointer; background: #00f0ff;" title="Neon Tide"></button>
+                  <button class="grad-swatch" data-color="#ffd700" style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); cursor: pointer; background: #ffd700;" title="Star Gold"></button>
+                  <button class="grad-swatch" data-color="#10b981" style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); cursor: pointer; background: #10b981;" title="Mint Seafoam"></button>
+                  <button class="grad-swatch" data-color="#a855f7" style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); cursor: pointer; background: #a855f7;" title="Electric Violet"></button>
+                  <button class="grad-swatch" data-color="#ff9f43" style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.2); cursor: pointer; background: #ff9f43;" title="Sunset Orange"></button>
+                </div>
+              </div>
+
               <div class="input-field full-width" id="text-value-container" style="display: none; margin-top: 10px;">
                 <label for="val-text">Text Content</label>
                 <input type="text" id="val-text" placeholder="Enter magical text..." />

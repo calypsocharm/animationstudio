@@ -6,6 +6,8 @@ import { CanvasController } from './canvas.js';
 import { TimelineController } from './timeline.js';
 import { getResolvedElementState } from './engine.js';
 import { exportToProjectJSON, compileToCSSHTML } from './exporter.js';
+import { synth } from './audio.js';
+import { particles } from './particles.js';
 
 class AnimationStudioApp {
   constructor() {
@@ -119,6 +121,8 @@ class AnimationStudioApp {
     document.getElementById('stroke-hex').innerText = state.stroke.toUpperCase();
     document.getElementById('val-stroke-width').value = state.strokeWidth;
     document.getElementById('val-blur').value = state.blur;
+    document.getElementById('val-squish').value = state.squish;
+    document.getElementById('squish-val').innerText = state.squish;
 
     // Populate and set parent selector drop-down
     const parentSelect = document.getElementById('val-parent');
@@ -163,7 +167,12 @@ class AnimationStudioApp {
     spawnerBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const type = btn.dataset.type;
-        this.addElement(type);
+        synth.buttonTick();
+        if (btn.classList.contains('sticker-btn')) {
+          this.addStickerElement(type);
+        } else {
+          this.addElement(type);
+        }
       });
     });
 
@@ -198,14 +207,17 @@ class AnimationStudioApp {
 
     // 4. Zoom Controls
     document.getElementById('btn-zoom-in').addEventListener('click', () => {
+      synth.buttonTick();
       this.zoom = Math.min(2.5, this.zoom + 0.1);
       this.updateZoomUI();
     });
     document.getElementById('btn-zoom-out').addEventListener('click', () => {
+      synth.buttonTick();
       this.zoom = Math.max(0.4, this.zoom - 0.1);
       this.updateZoomUI();
     });
     document.getElementById('btn-zoom-reset').addEventListener('click', () => {
+      synth.buttonTick();
       this.zoom = 1.0;
       this.updateZoomUI();
     });
@@ -232,10 +244,13 @@ class AnimationStudioApp {
     // 7. Playback Buttons
     const btnPlay = document.getElementById('btn-timeline-play');
     btnPlay.addEventListener('click', () => {
+      synth.sparkleTwinkle();
       if (this.isPlaying) {
         this.pause();
       } else {
         this.play();
+        // Emit sparkle burst from screen center on play chord
+        particles.emitSparkle(400, 250, 15);
       }
     });
 
@@ -339,6 +354,30 @@ class AnimationStudioApp {
     document.getElementById('val-opacity').addEventListener('input', (e) => updateProp('opacity', e.target.value));
     document.getElementById('val-blur').addEventListener('input', (e) => updateProp('blur', e.target.value));
     document.getElementById('val-text').addEventListener('input', (e) => updateProp('text', e.target.value, false));
+    
+    document.getElementById('val-squish').addEventListener('input', (e) => {
+      document.getElementById('squish-val').innerText = e.target.value;
+      updateProp('squish', e.target.value);
+    });
+
+    // Gradients swatches trigger
+    const swatches = document.querySelectorAll('.grad-swatch');
+    swatches.forEach(sw => {
+      sw.addEventListener('click', () => {
+        synth.bubblePop();
+        const colorVal = sw.dataset.color;
+        document.getElementById('val-color').value = colorVal;
+        document.getElementById('color-hex').innerText = colorVal.toUpperCase();
+        updateProp('color', colorVal, false);
+
+        // Twinkle sparkles around selected element
+        const el = this.elements.find(x => x.id === this.selectedElementId);
+        if (el) {
+          const state = getResolvedElementState(el, this.elements, this.currentTime);
+          particles.emitSparkle(state.x, state.y, 8, colorVal);
+        }
+      });
+    });
 
     // 10. Keyframe additions / deletions
     document.getElementById('btn-add-keyframe').addEventListener('click', () => {
@@ -366,6 +405,7 @@ class AnimationStudioApp {
         });
       });
 
+      synth.bubblePop();
       this.timelineCtrl.render();
       this.saveToLocalStorage();
     });
@@ -382,6 +422,7 @@ class AnimationStudioApp {
         el.keyframes[property] = el.keyframes[property].filter(k => Math.abs(k.time - parsedTime) > 0.01);
       }
 
+      synth.bubblePop();
       this.timelineCtrl.render();
       this.updateInspector();
       this.saveToLocalStorage();
@@ -663,6 +704,89 @@ class AnimationStudioApp {
     this.canvasCtrl.setElements(this.elements);
     this.timelineCtrl.setElements(this.elements);
     
+    synth.bubblePop();
+    // Burst sparkles at spawned element center
+    particles.emitSparkle(newEl.x, newEl.y, 10, newEl.color);
+    
+    this.selectElement(id);
+    this.saveToLocalStorage();
+  }
+
+  addStickerElement(stickerType) {
+    const id = Date.now();
+    let name = '';
+    let type = '';
+    let color = '';
+    let width = 80;
+    let height = 80;
+    let radius = 0;
+    let text = '';
+    let blur = 0;
+
+    if (stickerType === 'starfish') {
+      name = '⭐ Cute Starfish';
+      type = 'star';
+      color = '#ff9f43';
+      blur = 15;
+    } else if (stickerType === 'pearl') {
+      name = '🦪 Happy Pearl';
+      type = 'circle';
+      color = '#00f0ff';
+      blur = 20;
+    } else if (stickerType === 'shell') {
+      name = '🐚 Ocean Shell';
+      type = 'triangle';
+      color = '#ff6b8b';
+      width = 90;
+      height = 70;
+      blur = 10;
+    } else if (stickerType === 'cloud') {
+      name = '☁️ Smiling Cloud';
+      type = 'rect';
+      color = '#ffffff';
+      width = 120;
+      height = 60;
+      radius = 30;
+      blur = 12;
+    }
+
+    const newEl = {
+      id: id,
+      name: name,
+      type: type,
+      x: 400,
+      y: 250,
+      width: width,
+      height: height,
+      rotation: 0,
+      scale: 1,
+      color: color,
+      opacity: 100,
+      radius: radius,
+      stroke: '#ffffff',
+      strokeWidth: 0,
+      blur: blur,
+      pivotX: 50,
+      pivotY: 50,
+      parentId: null,
+      squish: 3, // Enable dynamic squash by default for stickers!
+      text: text,
+      locked: false,
+      hidden: false,
+      keyframes: {
+        x: [], y: [], width: [], height: [], rotation: [], scale: [], 
+        opacity: [], color: [], radius: [], stroke: [], strokeWidth: [], blur: [], text: [],
+        pivotX: [], pivotY: [], squish: []
+      }
+    };
+
+    this.elements.push(newEl);
+    this.canvasCtrl.setElements(this.elements);
+    this.timelineCtrl.setElements(this.elements);
+
+    synth.sparkleTwinkle();
+    particles.emitSparkle(400, 250, 15, color);
+
     this.selectElement(id);
     this.saveToLocalStorage();
   }
@@ -747,6 +871,7 @@ class AnimationStudioApp {
 
       // Visibility Toggle
       item.querySelector('.visibility-btn').addEventListener('click', () => {
+        synth.buttonTick();
         el.hidden = !el.hidden;
         this.canvasCtrl.render();
         this.canvasCtrl.updateTransformOverlay();
@@ -756,6 +881,7 @@ class AnimationStudioApp {
 
       // Lock Toggle
       item.querySelector('.lock-btn').addEventListener('click', () => {
+        synth.buttonTick();
         el.locked = !el.locked;
         this.updateLayerListUI();
         this.saveToLocalStorage();
@@ -763,6 +889,7 @@ class AnimationStudioApp {
 
       // Delete Layer
       item.querySelector('.delete-btn').addEventListener('click', () => {
+        synth.buttonTick();
         this.deleteElement(el.id);
       });
 

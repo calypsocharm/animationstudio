@@ -3,6 +3,7 @@
    ========================================================================== */
 
 import { getResolvedElementState } from './engine.js';
+import { particles } from './particles.js';
 
 export class CanvasController {
   constructor(viewportId, containerId, overlayId, onSelectionChanged, onElementModified) {
@@ -31,6 +32,9 @@ export class CanvasController {
     this.elementStart = {};
     
     this.initEvents();
+    
+    // Initialize magical particle overlay
+    setTimeout(() => particles.init('canvas-stage-wrapper'), 100);
   }
 
   setElements(elements) {
@@ -136,8 +140,19 @@ export class CanvasController {
     window.addEventListener('mousemove', (e) => {
       if (this.isDragging && this.selectedElementId) {
         this.handleDragMove(e);
+        
+        // Emit sparkles at mouse coords scaled by zoom
+        const rect = this.container.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) / this.zoom;
+        const my = (e.clientY - rect.top) / this.zoom;
+        particles.emitSparkle(mx, my, 1);
       } else if (this.isTransforming && this.selectedElementId) {
         this.handleTransformMove(e);
+        
+        const rect = this.container.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) / this.zoom;
+        const my = (e.clientY - rect.top) / this.zoom;
+        particles.emitSparkle(mx, my, 1);
       }
     });
 
@@ -378,7 +393,12 @@ export class CanvasController {
       shadowFilter = `drop-shadow(0 0 ${state.blur}px ${state.color})`;
     }
 
-    div.style.transform = `translate(-50%, -50%) rotate(${state.rotation}deg) scale(${state.scale})`;
+    // Squash-and-Stretch calculations (chef's kiss motion path deformers)
+    let transform = `translate(-50%, -50%) rotate(${state.rotation}deg) scale(${state.scale})`;
+    if (state.squishScaleX !== 1 || state.squishScaleY !== 1) {
+      transform += ` rotate(${state.motionAngle}deg) scale(${state.squishScaleX}, ${state.squishScaleY}) rotate(${-state.motionAngle}deg)`;
+    }
+    div.style.transform = transform;
     
     // Inline template structures for different shapes
     if (state.type === 'circle') {

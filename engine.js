@@ -157,14 +157,15 @@ export function getElementStateAtTime(element, time) {
     strokeWidth: interpolateProperty(kf.strokeWidth, time, element.strokeWidth, 'number'),
     blur: interpolateProperty(kf.blur, time, element.blur, 'number'),
     pivotX: interpolateProperty(kf.pivotX, time, element.pivotX !== undefined ? element.pivotX : 50, 'number'),
-    pivotY: interpolateProperty(kf.pivotY, time, element.pivotY !== undefined ? element.pivotY : 50, 'number')
+    pivotY: interpolateProperty(kf.pivotY, time, element.pivotY !== undefined ? element.pivotY : 50, 'number'),
+    squish: interpolateProperty(kf.squish, time, element.squish !== undefined ? element.squish : 0, 'number')
   };
 }
 
 /**
- * Recursively resolves parent-child hierarchies to compute absolute coordinate states.
+ * Resolves element states without velocity calculations to avoid circular recursion loops.
  */
-export function getResolvedElementState(element, elements, time, cache = {}) {
+export function getResolvedElementStateWithoutSquish(element, elements, time, cache = {}) {
   if (cache[element.id]) {
     return cache[element.id];
   }
@@ -176,10 +177,7 @@ export function getResolvedElementState(element, elements, time, cache = {}) {
   if (element.parentId) {
     const parent = elements.find(x => x.id === element.parentId);
     if (parent) {
-      // Resolve parent first recursively
-      const parentState = getResolvedElementState(parent, elements, time, cache);
-
-      // Rotate child local offsets relative to parent rotation and parent scale
+      const parentState = getResolvedElementStateWithoutSquish(parent, elements, time, cache);
       const rad = parentState.rotation * (Math.PI / 180);
       const rx = localState.x * Math.cos(rad) - localState.y * Math.sin(rad);
       const ry = localState.x * Math.sin(rad) + localState.y * Math.cos(rad);
@@ -194,4 +192,49 @@ export function getResolvedElementState(element, elements, time, cache = {}) {
   cache[element.id] = localState;
   return localState;
 }
+
+/**
+ * Recursively resolves parent-child hierarchies and computes squash/stretch dynamics.
+ */
+export function getResolvedElementState(element, elements, time, cache = {}) {
+  if (cache[element.id]) {
+    return cache[element.id];
+  }
+
+  // Get base resolved coordinates
+  const state = getResolvedElementStateWithoutSquish(element, elements, time, {});
+
+  // Compute velocities for squash-and-stretch
+  state.squishScaleX = 1;
+  state.squishScaleY = 1;
+  state.motionAngle = 0;
+
+  if (state.squish > 0 && time > 0) {
+    const prevTime = Math.max(0, time - 0.04);
+    const dt = time - prevTime;
+    
+    if (dt > 0) {
+      const prevState = getResolvedElementStateWithoutSquish(element, elements, prevTime, {});
+      
+      const vx = (state.x - prevState.x) / dt;
+      const vy = (state.y - prevState.y) / dt;
+      const speed = Math.sqrt(vx * vx + vy * vy);
+      
+      // Speed multiplier
+      const speedNormalized = speed / 1200; // clamp normalize factor
+      
+      if (speedNormalized > 0.01) {
+        const distortion = Math.min(0.65, speedNormalized * state.squish * 0.12);
+        
+        state.squishScaleX = 1 + distortion; // Stretch along axis
+        state.squishScaleY = 1 / (1 + distortion); // Compress perpendicular
+        state.motionAngle = Math.atan2(vy, vx) * (180 / Math.PI);
+      }
+    }
+  }
+
+  cache[element.id] = state;
+  return state;
+}
+
 
