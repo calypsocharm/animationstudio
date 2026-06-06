@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Starby Animation Studio — Draw & Animate with Magic</title>
+  <meta name="description" content="Animate vector shapes, text, and components with keyframes, timeline controls, and custom CSS exports for the Starby Art Suite." />
+  
+  <!-- Typography & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="studio-app">
+
+    <!-- ── TOP HEADER ── -->
+    <header class="studio-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <!-- Magic Starfish SVG -->
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L14.8 8.6L22 9.2L16.5 13.8L18.2 20.8L12 17.1L5.8 20.8L7.5 13.8L2 9.2L9.2 8.6L12 2Z" fill="url(#star-grad)" stroke="#00f0ff" stroke-width="1.5"/>
+            <circle cx="12" cy="11" r="2.5" fill="#ffffff" filter="drop-shadow(0 0 3px #00f0ff)"/>
+            <defs>
+              <linearGradient id="star-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#b026ff" />
+                <stop offset="100%" stop-color="#00f0ff" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>Starby <span>Animation</span></h1>
+          <span class="badge">SUITE BETA</span>
+        </div>
+      </div>
+
+      <div class="project-info">
+        <input type="text" id="project-title" value="My Magical Animation" title="Rename Project" />
+        <span class="autosave-status"><span class="status-dot"></span>Autosaved locally</span>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-new" class="btn secondary" title="Start a fresh project">
+          <span class="material-symbols-rounded">add_circle</span> New
+        </button>
+        <button id="btn-import" class="btn secondary" title="Import a .staranim project">
+          <span class="material-symbols-rounded">file_open</span> Import
+          <input type="file" id="file-import-input" accept=".staranim,application/json" style="display:none;" />
+        </button>
+        <button id="btn-export-project" class="btn secondary" title="Export .staranim project file">
+          <span class="material-symbols-rounded">download</span> Save Project
+        </button>
+        <div class="divider"></div>
+        <button id="btn-export-css" class="btn primary" title="Generate CSS keyframes & HTML">
+          <span class="material-symbols-rounded">bolt</span> Export CSS
+        </button>
+      </div>
+    </header>
+
+    <!-- ── MAIN CONTENT CONTAINER ── -->
+    <div class="studio-workspace">
+
+      <!-- ─ LEFT SIDEBAR (Assets & Layers) ─ -->
+      <aside class="sidebar-left">
+        <!-- Asset Tool Library -->
+        <div class="library-section">
+          <h3>Add Elements</h3>
+          <div class="tool-grid">
+            <button class="tool-btn" data-type="star" title="Add Golden Star">
+              <span class="material-symbols-rounded">star</span>
+              <span>Star</span>
+            </button>
+            <button class="tool-btn" data-type="circle" title="Add Magical Pearl (Circle)">
+              <span class="material-symbols-rounded">circle</span>
+              <span>Pearl</span>
+            </button>
+            <button class="tool-btn" data-type="rect" title="Add Deep Box (Rectangle)">
+              <span class="material-symbols-rounded">rectangle</span>
+              <span>Box</span>
+            </button>
+            <button class="tool-btn" data-type="triangle" title="Add Coral Cone (Triangle)">
+              <span class="material-symbols-rounded">change_history</span>
+              <span>Cone</span>
+            </button>
+            <button class="tool-btn" data-type="text" title="Add Glowing Text">
+              <span class="material-symbols-rounded">title</span>
+              <span>Text</span>
+            </button>
+            <button class="tool-btn" data-type="wave" title="Add Wave Path">
+              <span class="material-symbols-rounded">waves</span>
+              <span>Wave</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Layers Section -->
+        <div class="layers-section">
+          <div class="section-header">
+            <h3>Layers</h3>
+            <span class="layer-count" id="layer-count">0 layers</span>
+          </div>
+          <div id="layer-list" class="layer-list">
+            <!-- Layers injected programmatically -->
+            <div class="empty-layers-state">
+              <span class="material-symbols-rounded">layers_clear</span>
+              <p>No elements created yet.</p>
+              <button id="btn-load-demo" class="btn secondary small">Load Magical Demo</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ─ CENTER STAGE / CANVAS ─ -->
+      <main class="canvas-stage">
+        <!-- Canvas Toolbar -->
+        <div class="canvas-toolbar">
+          <div class="toolbar-left">
+            <button id="btn-zoom-out" class="btn-icon" title="Zoom Out"><span class="material-symbols-rounded">zoom_out</span></button>
+            <span id="zoom-level">100%</span>
+            <button id="btn-zoom-in" class="btn-icon" title="Zoom In"><span class="material-symbols-rounded">zoom_in</span></button>
+            <button id="btn-zoom-reset" class="btn text-btn" title="Reset Zoom">Fit</button>
+          </div>
+          <div class="toolbar-right">
+            <button id="toggle-grid" class="btn-icon active" title="Toggle Grid Snapping"><span class="material-symbols-rounded">grid_on</span></button>
+            <button id="canvas-bg-toggle" class="btn-icon" title="Change Background Style"><span class="material-symbols-rounded">palette</span></button>
+          </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="canvas-viewport" id="canvas-viewport">
+          <div class="canvas-stage-wrapper" id="canvas-stage-wrapper" style="width: 800px; height: 500px;">
+            <!-- Snapping grid backdrop -->
+            <div class="grid-backdrop" id="grid-backdrop"></div>
+            
+            <!-- Actual interactive container -->
+            <div class="animation-container" id="animation-container">
+              <!-- Animated layers will render here -->
+            </div>
+
+            <!-- Bounding Box / Transform Handles Overlay (SVG/HTML overlay) -->
+            <div class="transform-overlay" id="transform-overlay" style="display: none;">
+              <div class="transform-border"></div>
+              <!-- Rotate Handle -->
+              <div class="handle rotate-handle" data-handle="rotate" title="Rotate">
+                <span class="material-symbols-rounded">sync</span>
+              </div>
+              <!-- Scaling Handles -->
+              <div class="handle scale-handle tl" data-handle="tl"></div>
+              <div class="handle scale-handle tr" data-handle="tr"></div>
+              <div class="handle scale-handle bl" data-handle="bl"></div>
+              <div class="handle scale-handle br" data-handle="br"></div>
+              <div class="handle scale-handle l" data-handle="l"></div>
+              <div class="handle scale-handle r" data-handle="r"></div>
+              <div class="handle scale-handle t" data-handle="t"></div>
+              <div class="handle scale-handle b" data-handle="b"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- ─ RIGHT PANEL (Inspector & Presets) ─ -->
+      <aside class="sidebar-right">
+        <div class="inspector-tabs">
+          <button class="inspector-tab active" data-tab="properties">Properties</button>
+          <button class="inspector-tab" data-tab="presets">Presets</button>
+        </div>
+
+        <!-- PROPERTIES PANEL -->
+        <div class="tab-pane active" id="pane-properties">
+          <div class="inspector-group" id="inspector-selection-info">
+            <div class="no-selection-msg">
+              <span class="material-symbols-rounded">info</span>
+              <p>Select an element to view and animate its properties.</p>
+            </div>
+          </div>
+
+          <div id="inspector-controls" style="display: none;">
+            <!-- Element Identity -->
+            <div class="inspector-group name-group">
+              <label for="el-name">Layer Name</label>
+              <input type="text" id="el-name" />
+            </div>
+
+            <!-- Transform Coordinates -->
+            <div class="inspector-group">
+              <h4>Transform</h4>
+              <div class="input-row-grid">
+                <div class="input-field">
+                  <label for="val-x">X Position</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-x" step="5" />
+                    <span>px</span>
+                  </div>
+                </div>
+                <div class="input-field">
+                  <label for="val-y">Y Position</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-y" step="5" />
+                    <span>px</span>
+                  </div>
+                </div>
+              </div>
+              <div class="input-row-grid">
+                <div class="input-field">
+                  <label for="val-width">Width</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-width" min="10" step="5" />
+                    <span>px</span>
+                  </div>
+                </div>
+                <div class="input-field">
+                  <label for="val-height">Height</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-height" min="10" step="5" />
+                    <span>px</span>
+                  </div>
+                </div>
+              </div>
+              <div class="input-row-grid">
+                <div class="input-field">
+                  <label for="val-rotation">Rotation</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-rotation" min="-360" max="360" step="5" />
+                    <span>°</span>
+                  </div>
+                </div>
+                <div class="input-field">
+                  <label for="val-scale">Scale</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-scale" min="0.1" max="10" step="0.1" />
+                    <span>x</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Style Parameters -->
+            <div class="inspector-group">
+              <h4>Styles</h4>
+              <div class="input-row-grid">
+                <div class="input-field">
+                  <label for="val-color">Fill Color</label>
+                  <div class="color-picker-wrapper">
+                    <input type="color" id="val-color" />
+                    <span class="color-text-val" id="color-hex">#00f0ff</span>
+                  </div>
+                </div>
+                <div class="input-field">
+                  <label for="val-opacity">Opacity</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-opacity" min="0" max="100" />
+                    <span>%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="input-row-grid">
+                <div class="input-field">
+                  <label for="val-radius">Border Radius</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-radius" min="0" max="500" />
+                    <span>px</span>
+                  </div>
+                </div>
+                <div class="input-field">
+                  <label for="val-stroke">Stroke Color</label>
+                  <div class="color-picker-wrapper">
+                    <input type="color" id="val-stroke" />
+                    <span class="color-text-val" id="stroke-hex">#ffffff</span>
+                  </div>
+                </div>
+              </div>
+              <div class="input-row-grid">
+                <div class="input-field">
+                  <label for="val-stroke-width">Stroke Width</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-stroke-width" min="0" max="50" />
+                    <span>px</span>
+                  </div>
+                </div>
+                <div class="input-field">
+                  <label for="val-blur">Glow / Shadow</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="val-blur" min="0" max="100" />
+                    <span>px</span>
+                  </div>
+                </div>
+              </div>
+              <div class="input-field full-width" id="text-value-container" style="display: none; margin-top: 10px;">
+                <label for="val-text">Text Content</label>
+                <input type="text" id="val-text" placeholder="Enter magical text..." />
+              </div>
+            </div>
+
+            <!-- Keyframe Interactivity -->
+            <div class="inspector-group keyframe-actions-group">
+              <h4>Keyframes</h4>
+              <p class="section-desc">Add a keyframe at the current playhead time (selected property properties will interpolate).</p>
+              
+              <div class="keyframe-buttons">
+                <button id="btn-add-keyframe" class="btn primary small">
+                  <span class="material-symbols-rounded">keyframes</span> Add Keyframe
+                </button>
+                <button id="btn-delete-keyframe" class="btn danger small" disabled>
+                  <span class="material-symbols-rounded">delete_sweep</span> Remove Keyframe
+                </button>
+              </div>
+
+              <!-- Easing -->
+              <div class="input-field full-width" style="margin-top: 12px;">
+                <label for="val-easing">Transition Easing</label>
+                <select id="val-easing">
+                  <option value="linear">Linear (Constant Speed)</option>
+                  <option value="ease-in">Ease-In (Slow start)</option>
+                  <option value="ease-out">Ease-Out (Slow end)</option>
+                  <option value="ease-in-out">Ease-In-Out (Slow start & end)</option>
+                  <option value="bounce">Magical Bounce</option>
+                  <option value="spring">Elastic Spring</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRESETS PANEL -->
+        <div class="tab-pane" id="pane-presets">
+          <div class="inspector-group">
+            <h3>Magical Presets</h3>
+            <p class="section-desc">Instantly add motion behaviors to the selected element. This overwrites existing keyframes on affected attributes.</p>
+            
+            <div class="presets-list">
+              <button class="preset-card" data-preset="spin" title="Continuous spin rotation">
+                <span class="preset-icon"><span class="material-symbols-rounded">sync</span></span>
+                <div class="preset-meta">
+                  <strong>Magical Spin</strong>
+                  <span>Spins 360° continuously</span>
+                </div>
+              </button>
+              
+              <button class="preset-card" data-preset="float" title="Float up and down gently">
+                <span class="preset-icon"><span class="material-symbols-rounded">sailing</span></span>
+                <div class="preset-meta">
+                  <strong>Coral Drift</strong>
+                  <span>Gently floats up and down</span>
+                </div>
+              </button>
+              
+              <button class="preset-card" data-preset="pulse" title="Grow and shrink gently">
+                <span class="preset-icon"><span class="material-symbols-rounded">favorite</span></span>
+                <div class="preset-meta">
+                  <strong>Heartbeat Pulse</strong>
+                  <span>Pulsates scale smoothly</span>
+                </div>
+              </button>
+
+              <button class="preset-card" data-preset="fade-in" title="Fade in from transparent">
+                <span class="preset-icon"><span class="material-symbols-rounded">visibility</span></span>
+                <div class="preset-meta">
+                  <strong>Sunbeam Rise</strong>
+                  <span>Smooth fade-in and scale-up</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+
+    <!-- ── BOTTOM TIMELINE ── -->
+    <footer class="studio-timeline">
+      <!-- Playback Control Bar -->
+      <div class="timeline-controls">
+        <div class="playback-buttons">
+          <button id="btn-timeline-rewind" class="btn-icon" title="Go to Start"><span class="material-symbols-rounded">first_page</span></button>
+          <button id="btn-timeline-prev" class="btn-icon" title="Previous Frame"><span class="material-symbols-rounded">chevron_left</span></button>
+          <button id="btn-timeline-play" class="btn-play" title="Play Animation"><span class="material-symbols-rounded">play_arrow</span></button>
+          <button id="btn-timeline-next" class="btn-icon" title="Next Frame"><span class="material-symbols-rounded">chevron_right</span></button>
+          <button id="btn-timeline-loop" class="btn-icon active" title="Toggle Loop"><span class="material-symbols-rounded">loop</span></button>
+        </div>
+
+        <div class="time-readout">
+          <span class="current-time" id="current-time">0.00s</span>
+          <span class="divider">/</span>
+          <span class="total-time" id="total-time">5.00s</span>
+        </div>
+
+        <div class="fps-setting">
+          <label for="fps-select">FPS</label>
+          <select id="fps-select">
+            <option value="60">60 FPS</option>
+            <option value="30" selected>30 FPS</option>
+            <option value="24">24 FPS</option>
+            <option value="12">12 FPS</option>
+          </select>
+        </div>
+
+        <div class="timeline-slider-wrapper">
+          <label for="timeline-duration">Duration</label>
+          <input type="range" id="timeline-duration" min="2" max="15" value="5" step="1" title="Set timeline duration" />
+          <span id="duration-val">5s</span>
+        </div>
+      </div>
+
+      <!-- Tracks and Scrubber Grid -->
+      <div class="timeline-workspace" id="timeline-workspace">
+        <!-- Track Labels (Left Column) -->
+        <div class="track-headers" id="track-headers-container">
+          <div class="track-header-cell master-header">
+            <span class="material-symbols-rounded">movie_creation</span> Master Timeline
+          </div>
+          <!-- Dynamic layer headers go here -->
+        </div>
+
+        <!-- Timeline Grid + Keyframes (Right Column) -->
+        <div class="timeline-view-area" id="timeline-view-area">
+          
+          <!-- Scrubber Ruler Header -->
+          <div class="timeline-ruler" id="timeline-ruler">
+            <!-- Ticks will be programmatically injected -->
+          </div>
+
+          <!-- Timeline Content Tracks -->
+          <div class="timeline-tracks-container" id="timeline-tracks-container">
+            <!-- Playhead scrubber bar -->
+            <div class="timeline-playhead" id="timeline-playhead">
+              <div class="playhead-cap"></div>
+              <div class="playhead-line"></div>
+            </div>
+
+            <!-- Master keyframe track (summarizes all layers) -->
+            <div class="timeline-track master-track" id="master-track-content">
+              <!-- Diamonds injected here -->
+            </div>
+
+            <!-- Dynamic tracks render here -->
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- ── EXPORT CODE MODAL ── -->
+    <div id="export-modal" class="modal-overlay" style="display: none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3><span class="material-symbols-rounded">bolt</span> Pure CSS & HTML Export</h3>
+          <button class="btn-close-modal" id="btn-close-export"><span class="material-symbols-rounded">close</span></button>
+        </div>
+        <div class="modal-body">
+          <p>This code bundle contains pure HTML nodes and a <code>&lt;style&gt;</code> tag with fully-compiled CSS keyframes. Paste it directly into your website to see the animation run instantly without scripts!</p>
+          
+          <div class="code-tabs">
+            <button class="code-tab active" data-tab="combined">CSS & HTML</button>
+            <button class="code-tab" data-tab="css-only">CSS Only</button>
+            <button class="code-tab" data-tab="html-only">HTML Only</button>
+          </div>
+
+          <div class="code-display-wrapper">
+            <pre><code id="export-code-box" class="language-css">/* Generating magic... */</code></pre>
+            <button class="btn primary btn-copy-code" id="btn-copy-code">
+              <span class="material-symbols-rounded">content_copy</span> Copy Code
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div> <!-- /#studio-app -->
+
+  <!-- App logic entry -->
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
