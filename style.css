@@ -1352,3 +1352,74 @@ select {
     transform: scale(1) translateY(0);
   }
 }
+
+/* Onion Skin overlays */
+.onion-skin-ghost {
+  pointer-events: none !important;
+  opacity: 0.20 !important;
+  z-index: 0 !important;
+  border: 1px dashed transparent !important;
+  box-shadow: none !important;
+}
+.onion-skin-ghost.past {
+  filter: sepia(1) saturate(8) hue-rotate(-50deg) !important;
+}
+.onion-skin-ghost.future {
+  filter: sepia(1) saturate(8) hue-rotate(90deg) !important;
+}
+
+/* Pivot Handle crosshair overlay */
+.pivot-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent-coral);
+  background: rgba(255, 107, 139, 0.2);
+  border-radius: 50%;
+  pointer-events: auto;
+  cursor: move;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(255, 107, 139, 0.5);
+  transition: background var(--transition-fast);
+}
+.pivot-handle::after {
+  content: '';
+  width: 4px;
+  height: 4px;
+  background: #ffffff;
+  border-radius: 50%;
+}
+.pivot-handle:active {
+  background: var(--accent-coral);
+}
+
+/* REC indicator */
+.rec-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 4px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+.rec-indicator .rec-dot {
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: rec-blink 1s infinite alternate;
+}
+@keyframes rec-blink {
+  from { opacity: 0.35; }
+  to { opacity: 1; box-shadow: 0 0 8px #ef4444; }
+}
+

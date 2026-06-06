@@ -155,6 +155,43 @@ export function getElementStateAtTime(element, time) {
     radius: interpolateProperty(kf.radius, time, element.radius, 'number'),
     stroke: interpolateProperty(kf.stroke, time, element.stroke, 'color'),
     strokeWidth: interpolateProperty(kf.strokeWidth, time, element.strokeWidth, 'number'),
-    blur: interpolateProperty(kf.blur, time, element.blur, 'number')
+    blur: interpolateProperty(kf.blur, time, element.blur, 'number'),
+    pivotX: interpolateProperty(kf.pivotX, time, element.pivotX !== undefined ? element.pivotX : 50, 'number'),
+    pivotY: interpolateProperty(kf.pivotY, time, element.pivotY !== undefined ? element.pivotY : 50, 'number')
   };
 }
+
+/**
+ * Recursively resolves parent-child hierarchies to compute absolute coordinate states.
+ */
+export function getResolvedElementState(element, elements, time, cache = {}) {
+  if (cache[element.id]) {
+    return cache[element.id];
+  }
+
+  const localState = getElementStateAtTime(element, time);
+  localState.id = element.id;
+  localState.parentId = element.parentId || null;
+
+  if (element.parentId) {
+    const parent = elements.find(x => x.id === element.parentId);
+    if (parent) {
+      // Resolve parent first recursively
+      const parentState = getResolvedElementState(parent, elements, time, cache);
+
+      // Rotate child local offsets relative to parent rotation and parent scale
+      const rad = parentState.rotation * (Math.PI / 180);
+      const rx = localState.x * Math.cos(rad) - localState.y * Math.sin(rad);
+      const ry = localState.x * Math.sin(rad) + localState.y * Math.cos(rad);
+
+      localState.x = parentState.x + rx * parentState.scale;
+      localState.y = parentState.y + ry * parentState.scale;
+      localState.rotation = parentState.rotation + localState.rotation;
+      localState.scale = parentState.scale * localState.scale;
+    }
+  }
+
+  cache[element.id] = localState;
+  return localState;
+}
+

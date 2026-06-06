@@ -126,6 +126,7 @@
             <button id="btn-zoom-reset" class="btn text-btn" title="Reset Zoom">Fit</button>
           </div>
           <div class="toolbar-right">
+            <button id="toggle-onion" class="btn-icon" title="Toggle Onion Skinning"><span class="material-symbols-rounded">layers</span></button>
             <button id="toggle-grid" class="btn-icon active" title="Toggle Grid Snapping"><span class="material-symbols-rounded">grid_on</span></button>
             <button id="canvas-bg-toggle" class="btn-icon" title="Change Background Style"><span class="material-symbols-rounded">palette</span></button>
           </div>
@@ -236,6 +237,12 @@
                     <span>x</span>
                   </div>
                 </div>
+              </div>
+              <div class="input-field full-width" style="margin-top: 10px;">
+                <label for="val-parent">Parent Rigging (Joint)</label>
+                <select id="val-parent" class="parent-child-select">
+                  <option value="">None (Independent Layer)</option>
+                </select>
               </div>
             </div>
 
@@ -403,6 +410,11 @@
           <label for="timeline-duration">Duration</label>
           <input type="range" id="timeline-duration" min="2" max="15" value="5" step="1" title="Set timeline duration" />
           <span id="duration-val">5s</span>
+        </div>
+
+        <div class="rec-indicator" title="Auto-Keyframe Active (recording edits)">
+          <div class="rec-dot"></div>
+          <span>REC</span>
         </div>
       </div>
 

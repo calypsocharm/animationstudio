@@ -4,7 +4,7 @@
 
 import { CanvasController } from './canvas.js';
 import { TimelineController } from './timeline.js';
-import { getElementStateAtTime } from './engine.js';
+import { getResolvedElementState } from './engine.js';
 import { exportToProjectJSON, compileToCSSHTML } from './exporter.js';
 
 class AnimationStudioApp {
@@ -101,7 +101,7 @@ class AnimationStudioApp {
     if (!el) return;
 
     // Get current animated state of the selected layer at this frame
-    const state = getElementStateAtTime(el, this.currentTime);
+    const state = getResolvedElementState(el, this.elements, this.currentTime);
 
     // Set form fields
     document.getElementById('el-name').value = state.name;
@@ -119,6 +119,29 @@ class AnimationStudioApp {
     document.getElementById('stroke-hex').innerText = state.stroke.toUpperCase();
     document.getElementById('val-stroke-width').value = state.strokeWidth;
     document.getElementById('val-blur').value = state.blur;
+
+    // Populate and set parent selector drop-down
+    const parentSelect = document.getElementById('val-parent');
+    if (parentSelect) {
+      parentSelect.innerHTML = '<option value="">None (Independent Layer)</option>';
+      
+      const isDescendant = (pId, cId) => {
+        if (pId === cId) return true;
+        const p = this.elements.find(x => x.id === pId);
+        if (p && p.parentId) return isDescendant(p.parentId, cId);
+        return false;
+      };
+
+      this.elements.forEach(other => {
+        if (other.id !== el.id && !isDescendant(other.id, el.id)) {
+          const opt = document.createElement('option');
+          opt.value = other.id;
+          opt.innerText = other.name;
+          parentSelect.appendChild(opt);
+        }
+      });
+      parentSelect.value = el.parentId || "";
+    }
 
     // Text specific field
     const textContainer = document.getElementById('text-value-container');
@@ -324,7 +347,7 @@ class AnimationStudioApp {
       if (!el) return;
 
       // Force add keyframes for crucial values to seal a pose at this playhead
-      const state = getElementStateAtTime(el, this.currentTime);
+      const state = getResolvedElementState(el, this.elements, this.currentTime);
       const props = ['x', 'y', 'rotation', 'scale', 'opacity', 'color', 'blur'];
       if (el.type === 'text') props.push('text');
       
@@ -464,6 +487,61 @@ class AnimationStudioApp {
       reader.readAsText(file);
     });
 
+    // Parenting selection drop-down trigger
+    const parentSelect = document.getElementById('val-parent');
+    if (parentSelect) {
+      parentSelect.addEventListener('change', (e) => {
+        const parentId = e.target.value ? parseInt(e.target.value) : null;
+        const el = this.elements.find(x => x.id === this.selectedElementId);
+        if (!el) return;
+
+        if (parentId) {
+          const parent = this.elements.find(x => x.id === parentId);
+          if (parent) {
+            const currentTime = this.currentTime;
+            const cache = {};
+            const childState = getResolvedElementState(el, this.elements, currentTime, cache);
+            const parentState = getResolvedElementState(parent, this.elements, currentTime, cache);
+
+            // Compute local offsets relative to parent center to maintain absolute layout pos
+            const dx = (childState.x - parentState.x) / parentState.scale;
+            const dy = (childState.y - parentState.y) / parentState.scale;
+            const rad = -parentState.rotation * (Math.PI / 180);
+            const lx = dx * Math.cos(rad) - dy * Math.sin(rad);
+            const ly = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+            el.parentId = parentId;
+            this.updateElementProperty(el, 'x', Math.round(lx));
+            this.updateElementProperty(el, 'y', Math.round(ly));
+            this.updateElementProperty(el, 'rotation', Math.round(childState.rotation - parentState.rotation));
+            this.updateElementProperty(el, 'scale', childState.scale / parentState.scale);
+          }
+        } else {
+          // Unparent: convert local offsets back to absolute canvas coords
+          const childState = getResolvedElementState(el, this.elements, this.currentTime);
+          el.parentId = null;
+          this.updateElementProperty(el, 'x', Math.round(childState.x));
+          this.updateElementProperty(el, 'y', Math.round(childState.y));
+          this.updateElementProperty(el, 'rotation', Math.round(childState.rotation));
+          this.updateElementProperty(el, 'scale', childState.scale);
+        }
+
+        this.canvasCtrl.render();
+        this.canvasCtrl.updateTransformOverlay();
+        this.timelineCtrl.render();
+        this.saveToLocalStorage();
+      });
+    }
+
+    // Onion Skin toggling
+    const onionBtn = document.getElementById('toggle-onion');
+    if (onionBtn) {
+      onionBtn.addEventListener('click', () => {
+        const active = onionBtn.classList.toggle('active');
+        this.canvasCtrl.setOnionSkin(active);
+      });
+    }
+
     // Global listener for dynamic timeline track selection
     window.addEventListener('selectLayer', (e) => {
       this.selectElement(e.detail);
@@ -568,12 +646,16 @@ class AnimationStudioApp {
       stroke: '#ffffff',
       strokeWidth: 0,
       blur: 0,
+      pivotX: 50,
+      pivotY: 50,
+      parentId: null,
       text: type === 'text' ? 'Magical Starby' : '',
       locked: false,
       hidden: false,
       keyframes: {
         x: [], y: [], width: [], height: [], rotation: [], scale: [], 
-        opacity: [], color: [], radius: [], stroke: [], strokeWidth: [], blur: [], text: []
+        opacity: [], color: [], radius: [], stroke: [], strokeWidth: [], blur: [], text: [],
+        pivotX: [], pivotY: []
       }
     };
 
@@ -776,18 +858,50 @@ class AnimationStudioApp {
 
   loadDemoProject() {
     const demo = {
-      title: 'Magical Reef & Pearl',
+      title: 'Magical Puppet Dance',
       duration: 5,
       fps: 30,
       elements: [
         {
-          id: 101,
-          name: 'Glowing Sunbeam (Pearl)',
-          type: 'circle',
+          id: 1,
+          name: 'Main Body (Torso)',
+          type: 'rect',
           x: 400,
           y: 200,
-          width: 90,
-          height: 90,
+          width: 80,
+          height: 120,
+          rotation: 0,
+          scale: 1.0,
+          color: '#a855f7',
+          opacity: 100,
+          radius: 12,
+          stroke: '#ffffff',
+          strokeWidth: 2,
+          blur: 10,
+          pivotX: 50,
+          pivotY: 50,
+          parentId: null,
+          text: '',
+          locked: false,
+          hidden: false,
+          keyframes: {
+            y: [
+              { time: 0, value: 200, easing: 'ease-in-out' },
+              { time: 1.25, value: 240, easing: 'ease-in-out' },
+              { time: 2.5, value: 200, easing: 'ease-in-out' },
+              { time: 3.75, value: 240, easing: 'ease-in-out' },
+              { time: 5, value: 200, easing: 'ease-in-out' }
+            ]
+          }
+        },
+        {
+          id: 2,
+          name: 'Glowing Head',
+          type: 'circle',
+          x: 0,
+          y: -95,
+          width: 70,
+          height: 70,
           rotation: 0,
           scale: 1.0,
           color: '#00f0ff',
@@ -795,96 +909,105 @@ class AnimationStudioApp {
           radius: 0,
           stroke: '#ffffff',
           strokeWidth: 2,
-          blur: 25,
+          blur: 20,
+          pivotX: 50,
+          pivotY: 90,
+          parentId: 1,
           text: '',
           locked: false,
           hidden: false,
           keyframes: {
-            x: [
-              { time: 0, value: 400, easing: 'ease-in-out' },
-              { time: 2.5, value: 400, easing: 'ease-in-out' },
-              { time: 5, value: 400, easing: 'ease-in-out' }
-            ],
-            y: [
-              { time: 0, value: 200, easing: 'ease-in-out' },
-              { time: 2.5, value: 260, easing: 'ease-in-out' },
-              { time: 5, value: 200, easing: 'ease-in-out' }
-            ],
-            scale: [
-              { time: 0, value: 0.9, easing: 'ease-in-out' },
-              { time: 1.25, value: 1.15, easing: 'ease-in-out' },
-              { time: 2.5, value: 0.9, easing: 'ease-in-out' },
-              { time: 3.75, value: 1.15, easing: 'ease-in-out' },
-              { time: 5, value: 0.9, easing: 'ease-in-out' }
-            ],
-            blur: [
-              { time: 0, value: 20, easing: 'linear' },
-              { time: 2.5, value: 40, easing: 'linear' },
-              { time: 5, value: 20, easing: 'linear' }
+            rotation: [
+              { time: 0, value: 0, easing: 'ease-in-out' },
+              { time: 1.25, value: 12, easing: 'ease-in-out' },
+              { time: 2.5, value: -12, easing: 'ease-in-out' },
+              { time: 3.75, value: 12, easing: 'ease-in-out' },
+              { time: 5, value: 0, easing: 'ease-in-out' }
             ]
           }
         },
         {
-          id: 102,
-          name: 'Floating Gold Star',
-          type: 'star',
-          x: 200,
-          y: 250,
-          width: 80,
-          height: 80,
+          id: 3,
+          name: 'Shoulder joint (Right)',
+          type: 'circle',
+          x: 60,
+          y: -40,
+          width: 20,
+          height: 20,
           rotation: 0,
-          scale: 1,
+          scale: 1.0,
+          color: '#ff6b8b',
+          opacity: 100,
+          radius: 0,
+          stroke: '#ffffff',
+          strokeWidth: 0,
+          blur: 5,
+          pivotX: 50,
+          pivotY: 50,
+          parentId: 1,
+          text: '',
+          locked: false,
+          hidden: false,
+          keyframes: {}
+        },
+        {
+          id: 4,
+          name: 'Upper Arm (Right)',
+          type: 'rect',
+          x: 45,
+          y: 0,
+          width: 80,
+          height: 22,
+          rotation: 0,
+          scale: 1.0,
+          color: '#a855f7',
+          opacity: 100,
+          radius: 6,
+          stroke: '#ffffff',
+          strokeWidth: 1,
+          blur: 0,
+          pivotX: 10,
+          pivotY: 50,
+          parentId: 3,
+          text: '',
+          locked: false,
+          hidden: false,
+          keyframes: {
+            rotation: [
+              { time: 0, value: 0, easing: 'ease-in-out' },
+              { time: 1.25, value: -60, easing: 'ease-in-out' },
+              { time: 2.5, value: 45, easing: 'ease-in-out' },
+              { time: 3.75, value: -60, easing: 'ease-in-out' },
+              { time: 5, value: 0, easing: 'ease-in-out' }
+            ]
+          }
+        },
+        {
+          id: 5,
+          name: 'Hand Star (Right)',
+          type: 'star',
+          x: 95,
+          y: 0,
+          width: 36,
+          height: 36,
+          rotation: 0,
+          scale: 1.0,
           color: '#ffd700',
           opacity: 100,
           radius: 0,
           stroke: '#ffffff',
           strokeWidth: 0,
           blur: 15,
+          pivotX: 50,
+          pivotY: 50,
+          parentId: 4,
           text: '',
           locked: false,
           hidden: false,
           keyframes: {
             rotation: [
               { time: 0, value: 0, easing: 'linear' },
-              { time: 2.5, value: 180, easing: 'linear' },
               { time: 5, value: 360, easing: 'linear' }
-            ],
-            x: [
-              { time: 0, value: 200, easing: 'ease-in-out' },
-              { time: 2.5, value: 600, easing: 'ease-in-out' },
-              { time: 5, value: 200, easing: 'ease-in-out' }
-            ]
-          }
-        },
-        {
-          id: 103,
-          name: 'Logo Text',
-          type: 'text',
-          x: 400,
-          y: 390,
-          width: 320,
-          height: 48,
-          rotation: 0,
-          scale: 1.0,
-          color: '#ffffff',
-          opacity: 100,
-          radius: 0,
-          stroke: '#ffffff',
-          strokeWidth: 0,
-          blur: 12,
-          text: 'Starby Art Suite',
-          locked: false,
-          hidden: false,
-          keyframes: {
-            opacity: [
-              { time: 0, value: 30, easing: 'ease-in-out' },
-              { time: 2.5, value: 100, easing: 'ease-in-out' },
-              { time: 5, value: 30, easing: 'ease-in-out' }
-            ],
-            scale: [
-              { time: 0, value: 0.95, easing: 'ease-in-out' },
-              { time: 2.5, value: 1.05, easing: 'ease-in-out' },
-              { time: 5, value: 0.95, easing: 'ease-in-out' }
             ]
           }
         }
